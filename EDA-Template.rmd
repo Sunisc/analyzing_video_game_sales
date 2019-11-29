@@ -1,0 +1,358 @@
+---
+title: "Exploratory Data Analysis"
+author: "STOR 320.(01 OR 02) Group PLACE_GROUP_NUMBER_HERE (Ex: STOR 320.01 Group 12)"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(reshape2)
+library(ggthemes)
+
+# Import Data Below
+Video_Games_Sales_2016<-read_csv("Video_Games_Sales_as_at_22_Dec_2016.csv")
+gdp <- read_csv('worldgdp.csv', skip = 4, na = c("", "NA"))
+```
+
+#Creator: Ruiyan Song
+
+###Q1: Did the sale get better over the years for the same Platform+Genre?
+
+```{r}
+Video_Games_Sales_2016 %>% select(Name,Genre,Year_of_Release)%>% filter(!Genre=='')%>% group_by(Year_of_Release,Genre)%>% summarise(Global_Sales=n())%>%ggplot(aes(x=Year_of_Release,y=Global_Sales,group=Genre,col=Genre))+geom_point(size=0.5)+geom_line()+theme(legend.position = "bottom",axis.text.x = element_text(angle=90),panel.background = element_rect(fill="white"), panel.grid.major = element_blank(), panel.grid.minor=element_blank())+labs(title="Global Sales Trend")
+
+```
+
+###Q2: Does each platform has a specific genre that it mainly focuses on?
+
+```{r}
+Video_Games_Sales_2016 %>%
+  count(Platform, Genre) %>%
+  group_by(Platform) %>%
+  mutate(perc = n / sum(n)) %>%
+  ggplot(aes(Genre,Platform,  fill = perc)) + geom_tile()
+```
+
+#Interpreter: Christian Dimoulas
+
+###Q1: For games that sold on both the PS3 and the PS4, which console sold more games?
+
+```{r}
+ps3a = filter(Video_Games_Sales_2016, Platform=="PS3")
+ps4a = filter(Video_Games_Sales_2016, Platform=="PS4")
+
+common2 = intersect(ps3a$Name, ps4a$Name)
+ps3a = filter(Video_Games_Sales_2016, Name %in% common2)
+ps4a = filter(Video_Games_Sales_2016, Name %in% common2)
+ps3a = filter(ps3a, Platform=="PS3")
+ps4a = filter(ps4a, Platform=="PS4")
+df2 <- data.frame(Game=character(),
+             	PS3=integer(),
+             	PS4=integer(), stringsAsFactors =FALSE)
+for (i in 1:dim(ps3a)[1]) {
+  if (ps3a[i,]$Global_Sales > ps4a[i,]$Global_Sales) {
+	print(ps3a[i,]$Name)
+	df2[nrow(df2) + 1,] = c(as.character(ps3a[i,]$Name), ps3a[i,]$Global_Sales, ps4a[i,]$Global_Sales)
+  }
+}
+df2
+
+df3 <- data.frame(Game=character(),
+             	PS3=integer(),
+             	PS4=integer(), stringsAsFactors =FALSE)
+for (i in 1:dim(ps3a)[1]) {
+  if (ps3a[i,]$Global_Sales < ps4a[i,]$Global_Sales) {
+	print(ps3a[i,]$Name)
+	df3[nrow(df3) + 1,] = c(as.character(ps3a[i,]$Name), ps3a[i,]$Global_Sales, ps4a[i,]$Global_Sales)
+  }
+}
+df3
+```
+
+###Q2: For games that sold on both the Xbox and the Xbox 360, which console sold more games?
+
+```{r}
+Xbox = filter(Video_Games_Sales_2016, Platform=="XB")
+Xbox360 = filter(Video_Games_Sales_2016, Platform=="X360")
+
+common1 = intersect(Xbox$Name, Xbox360$Name)
+Xbox = filter(Video_Games_Sales_2016, Name %in% common1)
+Xbox360 = filter(Video_Games_Sales_2016, Name %in% common1)
+Xbox = filter(Xbox, Platform=="XB")
+Xbox360 = filter(Xbox360, Platform=="X360")
+df1 <- data.frame(Game=character(),
+             	XB=integer(),
+             	X360=integer(), stringsAsFactors =FALSE)
+for (i in 1:dim(Xbox)[1]) {
+  if (Xbox[i,]$Global_Sales > Xbox360[i,]$Global_Sales) {
+	print(Xbox[i,]$Name)
+	df1[nrow(df1) + 1,] = c(as.character(Xbox[i,]$Name), Xbox[i,]$Global_Sales, Xbox360[i,]$Global_Sales)
+  }
+}
+df1
+
+df4 <- data.frame(Game=character(),
+             	XB=integer(),
+             	X360=integer(), stringsAsFactors =FALSE)
+for (i in 1:dim(Xbox)[1]) {
+  if (Xbox[i,]$Global_Sales < Xbox360[i,]$Global_Sales) {
+	print(Xbox[i,]$Name)
+	df4[nrow(df4) + 1,] = c(as.character(Xbox[i,]$Name), Xbox[i,]$Global_Sales, Xbox360[i,]$Global_Sales)
+  }
+}
+df4
+```
+
+#Orator: Surya Poddutooria
+
+###Q1:  Have video game series increased sales since the debut of the first game in the series?
+
+```{r}
+cod = filter(Video_Games_Sales_2016, str_detect(Name, 'Call of Duty'))
+pok = filter(Video_Games_Sales_2016, str_detect(Name, 'Pokemon|Pok?mon'))
+fifa = filter(Video_Games_Sales_2016, str_detect(Name, 'FIFA'))
+nba = filter(Video_Games_Sales_2016, str_detect(Name, 'NBA'))
+bf = filter(Video_Games_Sales_2016, str_detect(Name, 'Battlefield'))
+zelda = filter(Video_Games_Sales_2016, str_detect(Name, 'Zelda'))
+ff = filter(Video_Games_Sales_2016, str_detect(Name, 'Final Fantasy'))
+codsum = aggregate(cod$Global_Sales, by=list(Year=cod$Year_of_Release), FUN=sum)
+poksum = aggregate(pok$Global_Sales, by=list(Year=pok$Year_of_Release), FUN=sum)
+fifasum = aggregate(fifa$Global_Sales, by=list(Year=fifa$Year_of_Release), FUN=sum)
+nbasum = aggregate(nba$Global_Sales, by=list(Year=nba$Year_of_Release), FUN=sum)
+bfsum = aggregate(bf$Global_Sales, by=list(Year=bf$Year_of_Release), FUN=sum)
+zeldasum = aggregate(zelda$Global_Sales, by=list(Year=zelda$Year_of_Release), FUN=sum)
+ffsum = aggregate(ff$Global_Sales, by=list(Year=ff$Year_of_Release), FUN=sum)
+codsum <- codsum[1:(nrow(codsum)-1),]
+poksum <- poksum[1:(nrow(poksum)-1),]
+fifasum <- fifasum[1:(nrow(fifasum)-1),]
+nbasum <- nbasum[1:(nrow(nbasum)-1),]
+bfsum <- bfsum[1:(nrow(bfsum)-1),]
+zeldasum <- zeldasum[1:(nrow(zeldasum)-1),]
+ffsum <- ffsum[1:(nrow(ffsum)-1),]
+ggplot() +
+  labs(title="Popular video game-series sales over time") +
+  scale_y_continuous("Sales in Millions USD") +
+  theme(axis.text.x = element_text(angle = 90, size = 9)) +
+  geom_line(codsum, mapping=aes(x=Year, y=x, group=1, color='CoD'), size=.7) +
+  geom_line(poksum, mapping=aes(x=Year, y=x, group=1, color='Pokemon'), size=.7) +
+  geom_line(fifasum, mapping=aes(x=Year, y=x, group=1, color='Fifa'), size=.7) +
+  geom_line(nbasum, mapping=aes(x=Year, y=x, group=1, color='NBA'), size=.7) +
+  geom_line(bfsum, mapping=aes(x=Year, y=x, group=1, color='Battlefield'), size=.7) +
+  geom_line(zeldasum, mapping=aes(x=Year, y=x, group=1, color='Zelda'), size=.7) +
+  geom_line(ffsum, mapping=aes(x=Year, y=x, group=1, color='Final Fantasy'), size=.7) +
+  scale_colour_manual("", breaks = c("CoD", "Pokemon", "Fifa", "NBA", "Battlefield", "Zelda", "Final Fantasy"), values = c("CoD"="green", "Pokemon"="red", "Fifa"="blue", "NBA"="yellow", "Battlefield"="orange", "Zelda"="black", "Final Fantasy"="violet"))+
+  geom_point(codsum, mapping=aes(x=Year, y=x, group=1, color='CoD'), size=.7) +
+  geom_point(poksum, mapping=aes(x=Year, y=x, group=1, color='Pokemon'), size=.7) +
+  geom_point(fifasum, mapping=aes(x=Year, y=x, group=1, color='Fifa'), size=.7) +
+  geom_point(nbasum, mapping=aes(x=Year, y=x, group=1, color='NBA'), size=.7) +
+  geom_point(bfsum, mapping=aes(x=Year, y=x, group=1, color='Battlefield'), size=.7) +
+  geom_point(zeldasum, mapping=aes(x=Year, y=x, group=1, color='Zelda'), size=.7) +
+  geom_point(ffsum, mapping=aes(x=Year, y=x, group=1, color='Final Fantasy'), size=.7)
+```
+
+###Q2: Were there any games that were released on both the PS2 and PS3 that had higher sales on PS2? Any reasons?
+
+```{r}
+ps2 = filter(Video_Games_Sales_2016, Platform=="PS2")
+ps3 = filter(Video_Games_Sales_2016, Platform=="PS3")
+
+common = intersect(ps2$Name, ps3$Name)
+ps2 = filter(Video_Games_Sales_2016, Name %in% common)
+ps3 = filter(Video_Games_Sales_2016, Name %in% common)
+ps2 = filter(ps2, Platform=="PS2")
+ps3 = filter(ps3, Platform=="PS3")
+df <- data.frame(Game=character(),
+             	PS2=integer(),
+             	PS3=integer(), stringsAsFactors =FALSE)
+for (i in 1:dim(ps2)[1]) {
+  if (ps2[i,]$Global_Sales > ps3[i,]$Global_Sales) {
+	print(ps2[i,]$Name)
+	df[nrow(df) + 1,] = c(as.character(ps2[i,]$Name), ps2[i,]$Global_Sales, ps3[i,]$Global_Sales)
+  }
+}
+df
+```
+
+#Orator: Jinghan Chen
+
+###Q1: Did the recession in the U.S. have an effect on sales from December 2007 to June 2009?
+
+```{r}
+# recession in the U.S. have an effect on sales from December 2007 to June 2009
+# compare nominal sales across region
+region<-
+sales <- Video_Games_Sales_2016 %>%
+  select(Year_of_Release, NA_Sales, EU_Sales, JP_Sales, Other_Sales) 
+sales1 <- melt(sales, id.vars = 'Year_of_Release', var = 'region')
+
+sum_sales_byregion <- sales1 %>%
+  group_by(region, Year_of_Release) %>%
+  summarize(sum_sales = sum(value))
+
+sum_sales_byregion$region<-sub("_.*", "", sum_sales_byregion$region)
+ggplot(sum_sales_byregion, aes(x = Year_of_Release, y = sum_sales, fill = region, group = region)) +    geom_area() + 
+  theme(axis.text.x =element_text(angle = 90, hjust = 1)) + 
+  annotate('rect', xmin = 28.5, xmax = 30.5, ymin = -Inf, ymax = Inf, alpha = 0.2) + 
+  labs(title = 'Regional Sales by Year', y = 'Annual Nominal Sales') +
+  annotate("text", x = 29.5, y = 230, label = "Financial Crisis", size = 3)
+```
+
+###Q2: Does the economy of the region have an effect on sales?
+
+```{r}
+# clean world gdp data
+countrylist = c('Japan', 'United States', 'European Union')
+gdp <- gdp %>%
+  select('Country Name', '1980':'2018')
+
+gdp = gdp[gdp$`Country Name` %in% countrylist,]
+gdp = melt(gdp, id.vars = 'Country Name', var = 'Year_of_Release')
+
+gdp$`Country Name`[gdp$`Country Name` == 'Japan'] = 'JP'
+gdp$`Country Name`[gdp$`Country Name` == 'United States'] = 'NA'
+gdp$`Country Name`[gdp$`Country Name` == 'European Union'] = 'EU'
+names(gdp)[names(gdp) == "Country Name"] <- "region"
+
+print(gdp)
+print(sum_sales_byregion)
+
+ggplot(gdp, aes(x = Year_of_Release, y = value, fill = region, group = region, color = region)) + 
+  geom_line() + 
+  theme(axis.text.x =element_text(angle = 90, hjust = 1)) + 
+  labs(title = 'Regional GDP by Year', y = 'Yearly GDP')
+```
+
+#Deliverer: Paloma Hansen
+
+###Q1: Which Super Mario game had the most sales?
+
+```{r}
+SuperMario <- Video_Games_Sales_2016 %>%
+  filter(str_detect(Name, "Super Mario")) %>%
+  arrange(desc(Global_Sales)) %>%
+  select(Global_Sales, Name)
+
+SuperMario
+
+ggplot(data = SuperMario) + 
+  geom_point(mapping = aes(x = Name, y = Global_Sales))+ theme(axis.text.x = element_text(angle = 90))
+```
+
+###Q2: Which Nintendo platform had the most success with any Super Mario Bros game? When?
+
+```{r}
+PlatformMario= Video_Games_Sales_2016 %>%
+    filter(str_detect(Name, "Super Mario")) %>%
+    arrange(desc(Platform)) %>%
+    arrange(desc(Global_Sales))%>%
+    group_by(Year_of_Release) %>%
+    select(Platform, Name, Global_Sales,Year_of_Release)
+
+              
+PlatformMario
+
+```
+
+# Follow-up Questions
+
+### New Questions Based Off Initial Investigation
+
+- Q1: Which gaming genres become more relevant over time?
+- Q2: Were more video games released during the Great Recession (December 2007 to Jun 2009)? If so, could this be the reason that sales incresed during the recession?
+- Q3: What is the difference in global sales for year in which the most games were sold and the year in which the least amount of games were sold?
+- Q4: What is one of the possible reasons that the same games sold better on newer platforms as opposed to older platforms?
+
+
+### Investigation of Follow-up Questions
+
+GIVE WHAT 2 QUESTIONS YOU ATTEMPTED TO INVESTIGATE FURTHER IN COMPLETE SENTENCES (*Example:* Our group decided to investigate Q2 and Q4 in further detail.)
+
+Our group decided to investigate Q1 and Q2 in further detail.
+
+SHOW AT LEAST 2 TABLES OR FIGURES BELOW THAT EXPLORE ANSWERS FOR THE QUESTIONS YOU ARE INVESTIGATING FURTHER.
+##Follow-up Question 1: Which gaming genres become more relevant over time?
+```{r}
+unique(Video_Games_Sales_2016$Genre)
+sports = filter(Video_Games_Sales_2016, str_detect(Genre, 'Sports'))
+platform = filter(Video_Games_Sales_2016, str_detect(Genre, 'Platform'))
+racing = filter(Video_Games_Sales_2016, str_detect(Genre, 'Racing'))
+role = filter(Video_Games_Sales_2016, str_detect(Genre, 'Role-Playing'))
+misc = filter(Video_Games_Sales_2016, str_detect(Genre, 'Misc'))
+shooter = filter(Video_Games_Sales_2016, str_detect(Genre, 'Shooter'))
+simulation = filter(Video_Games_Sales_2016, str_detect(Genre, 'Simulation'))
+action = filter(Video_Games_Sales_2016, str_detect(Genre, 'Action'))
+fighting = filter(Video_Games_Sales_2016, str_detect(Genre, 'Fighting'))
+adventure = filter(Video_Games_Sales_2016, str_detect(Genre, 'Adventure'))
+strategy = filter(Video_Games_Sales_2016, str_detect(Genre, 'Strategy'))
+sportsum = aggregate(sports$Global_Sales, by=list(Year=sports$Year_of_Release), FUN=sum)
+platformsum = aggregate(platform$Global_Sales, by=list(Year=platform$Year_of_Release), FUN=sum)
+racingsum = aggregate(racing$Global_Sales, by=list(Year=racing$Year_of_Release), FUN=sum)
+rolesum = aggregate(role$Global_Sales, by=list(Year=role$Year_of_Release), FUN=sum)
+miscsum = aggregate(misc$Global_Sales, by=list(Year=misc$Year_of_Release), FUN=sum)
+shootersum = aggregate(shooter$Global_Sales, by=list(Year=shooter$Year_of_Release), FUN=sum)
+simulationsum = aggregate(simulation$Global_Sales, by=list(Year=simulation$Year_of_Release), FUN=sum)
+actionsum = aggregate(action$Global_Sales, by=list(Year=action$Year_of_Release), FUN=sum)
+fightingsum = aggregate(fighting$Global_Sales, by=list(Year=fighting$Year_of_Release), FUN=sum)
+adventuresum = aggregate(adventure$Global_Sales, by=list(Year=adventure$Year_of_Release), FUN=sum)
+strategysum = aggregate(strategy$Global_Sales, by=list(Year=strategy$Year_of_Release), FUN=sum)
+
+genre <- rep("Strategy", dim(strategysum)[1])
+strategysum = cbind(strategysum, genre)
+genre <- rep("Adventure", dim(adventuresum)[1])
+adventuresum = cbind(adventuresum, genre)
+genre <- rep("Fighting", dim(fightingsum)[1])
+fightingsum = cbind(fightingsum, genre)
+genre <- rep("Action", dim(actionsum)[1])
+actionsum = cbind(actionsum, genre)
+genre <- rep("Simulation", dim(simulationsum)[1])
+simulationsum = cbind(simulationsum, genre)
+genre <- rep("Shooter", dim(shootersum)[1])
+shootersum = cbind(shootersum, genre)
+genre <- rep("Misc", dim(miscsum)[1])
+miscsum = cbind(miscsum, genre)
+genre <- rep("Role-playing", dim(rolesum)[1])
+rolesum = cbind(rolesum, genre)
+genre <- rep("Racing", dim(racingsum)[1])
+racingsum = cbind(racingsum, genre)
+genre <- rep("Platform", dim(platformsum)[1])
+platformsum = cbind(platformsum, genre)
+genre <- rep("Sports", dim(sportsum)[1])
+sportsum = cbind(sportsum, genre)
+
+total = rbind(strategysum, adventuresum, fightingsum, actionsum, simulationsum, shootersum, miscsum, rolesum, racingsum, platformsum, sportsum)
+
+total = subset(total, Year != 2017 & Year != 2020 & Year != "N/A")
+
+total
+
+ggplot(data = total) +
+	geom_bar(mapping= aes(x = Year, y = total$x, fill = genre), stat="identity") +
+	labs(title="Game genres over time") +
+  scale_y_continuous("Sales in Millions USD") +
+  theme(axis.text.x = element_text(angle = 90, size = 9))
+```
+
+
+##Follow-up Question 2: Were more video games released during the Great Recession (December 2007 to Jun 2009)? If so, could this be the reason that sales incresed during the recession?
+```{r}
+total1 = subset(Video_Games_Sales_2016, Year_of_Release != 2017 & Year_of_Release != 2020 & Year_of_Release != "N/A")
+ggplot(total1)+
+  geom_bar(mapping=aes(x=Year_of_Release), color="darkblue", fill="lightblue")+
+  labs(title="Number of Games Released Per Year", x="Year", y="Count") +
+  theme(axis.text.x = element_text(angle = 90, size = 9))
+```
+
+#Summary
+
+GIVE A 2 PARAGRAPH SUMMARY. 
+
+PARAGRAPH 1 SHOULD DESCRIBE WHAT YOU LEARNED ABOUT YOUR DATA FROM INVESTIGATING THE INITIAL QUESTIONS. DID YOU FIND ANYTHING UNUSUAL IN YOUR DATA? DID ANYTHING SURPRISE YOU? WHICH OF THE INITIAL QUESTIONS WERE HELPFUL IN LEADING YOU TO MORE QUESTIONS?
+
+PARAGRAPH 2 SHOULD SUMMARIZE WHAT YOU LEARNED FROM INVESTIGATING THE FOLLOW-UP QUESTIONS. WHY ARE THESE FOLLOW-UP QUESTIONS INTERESTING FOR INVESTIGATION? DESCRIBE THE TABLES/FIGURES YOU USED TO EXPLORE ANSWERS TO THESE FOLLOW-UP QUESTIONS? WHAT DID YOU LEARN FROM THE TABLES/FIGURES REGARDING THE FOLLOW-UP QUESTIONS YOU PROPOSED?
+
+  Ruiyan found that global sales reached their peak around the year 2008 and then they began to decrease after 2010. Visually, the biggest sales drop happened in 2011. Moreover, the three most popular sports genres are action, miscellaneous, and sports. Ruiyan also tried to find if each platform had a specific genre that is focused on. For this, she found that PCFX only focuses on role-playing games; TG16 focuses on shooter and adventure games; WS focuses on role-playing and strategy; all other platforms focus on a variety of genres. We were surprised to find that the PS platforms (PSV, PSP, PS4, PS3, PS2) focus on every genre listed in the data set. I researched games that sold on both the PS3 and PS4 and then the games that sold on both the Xbox and Xbox 360. I sought out to find whether the same games sold better on older platforms or newer platforms. I was surprised to find that, on both the PlayStation and Xbox, the same games sold better on newer platforms. I thought that most people would continue to buy games for their older consoles and wait until the price of newer consoles went down but clearly, that is not the case. Surya researched whether video games series generally increase sales after the debut of their first game in the series. He found that some franchises did gain popularity as time progressed while other franchises had a lot of variance and there was no clear relationship. He also tried to find if there were any games on both the PS2 and PS3 that had higher sales on the PS2. For this, he found 73 examples in which sales were higher on the PS2. Jinghan researched whether the recession affected sales from December 2007 to June 2009. We found it unusual that the peak of video game sales occurred during the Great Recession. As a comparison, the video game sales did drop dramatically after the recession, but it did not pick up after the economy recovered, so that is another point that we found surprising and we might need to look into specific factors while modeling. It is certainly possible that the continuous drop in sales after 2008 was caused by the general popularity of video games, but not the economic situation alone. Paloma found that the original Super Mario game was the Super Mario game with the most sales. The game was released in 1985 on the NES and global sales were 40.24 million dollars. A lot of our findings resulted in more questions. Jinghan's finding that more games were sold during the Great Recession than any year from 1960 to 2016 led us to research possible reasons. Ruiyan's research regarding the relationship between platform and genre motivated our group to research which gaming genres became more relevant over time. Jinghan’s graph also led our group to wonder how the year with the lowest global sales compared to the year with the highest global sales. Finally, the research questions comparing sales of the same games on different platforms led us to wonder why games on newer platforms generally sold better. 
+  
+  Our group chose to focus on two follow-up questions. We first tried to find which gaming genres became more relevant over time. We were interested in finding this out because we had researched the relationship between platform and genre. Hence, we were curious if our results could have been affected by certain trends. From the graph we produced, we found that the trends in video game genres depended on the year. For example, there was not much variety in video game genres from 1980 to 1990. Then, from 1990 to 2009, each genre increasingly grew in popularity; specifically, shooter, action, and sports games. This is probably due to franchises gaining recognition. Examples of popular franchises that grew in popularity throughout this time are Grand Theft Auto, Call of Duty, and FIFA. Although the variety mostly persists from 2009 to 2016, we were surprised to find that total global sales fall significantly year after year. This could be due to several reasons. One major cause could be the rise in the popularity of freemium games. Freemium games are free to play but a user has to pay money to unlock certain features. Another factor that might be contributing to the decline in sales since 2009 could be the growing popularity of games that people can play on their phones. As technology improves, these games become more complex both graphically and mechanically. Today, large franchises like Pokemon, Call of Duty, and Fortnite are releasing games on our phones that would normally have to be downloaded or played on a video game console. Nevertheless, the chart does show that platform and racing games lost their popularity during the period that lasted from 2009 to 2016. The second question that our group chose to focus on was what might have contributed to the increase in global sales during the Great Recession. This question was interesting to us because we expected global sales to decrease in an economic downturn; we thought that people be more frugal if the economy was performing poorly. However, this was not the case. Our group decided that one possible cause for the increase in global sales might be an increase in the number of games released. After graphing the number of games released per year, we found that the years of the Great Recession were also the years in which most games had been released. Moreover, it seems like the number of games could be a predictor of global sales since both of the charts we reviewed for our follow-up questions (global sales per year and the number of games released per year) are fairly similar.
