@@ -1,0 +1,157 @@
+---
+title: "320-Final"
+author: "Jinghan Chen"
+date:  "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(reshape2)
+library(ggthemes)
+```
+
+```{r}
+library(readr)
+vgsales <- read_csv("vgsales.csv")
+# world gdp data extracted from worldbank 
+gdp <- read_csv('worldgdp.csv', skip = 4, na = c("", "NA"))
+pop <- read_csv('worldpop.csv', skip = 4, na = c("", "NA"))
+```
+
+
+```{r}
+# 329 empty values in Year or Publisher, omit any rows with empty values
+vgsales[vgsales == 'N/A'] = NA
+vgsales1 <- na.omit(vgsales)
+vgsales1 <- vgsales1[vgsales1$Year != 2020,]
+```
+
+```{r}
+# clean world gdp data
+countrylist = c('Japan', 'United States', 'European Union')
+gdp <- gdp %>%
+  select('Country Name', '1980':'2018')
+
+gdp = gdp[gdp$`Country Name` %in% countrylist,]
+gdp = melt(gdp, id.vars = 'Country Name', var = 'Year')
+
+gdp$`Country Name`[gdp$`Country Name` == 'Japan'] = 'JP'
+gdp$`Country Name`[gdp$`Country Name` == 'United States'] = 'NA'
+gdp$`Country Name`[gdp$`Country Name` == 'European Union'] = 'EU'
+names(gdp)[names(gdp) == "Country Name"] <- "Region"
+
+```
+
+```{r}
+# clean world population data
+pop <- pop %>%
+  select('Country Name', '1980':'2018')
+pop = pop[pop$`Country Name` %in% countrylist,]
+pop = melt(pop, id.vars = 'Country Name', var = 'Year')
+
+pop$`Country Name`[pop$`Country Name` == 'Japan'] = 'JP'
+pop$`Country Name`[pop$`Country Name` == 'United States'] = 'NA'
+pop$`Country Name`[pop$`Country Name` == 'European Union'] = 'EU'
+names(pop)[names(pop) == "Country Name"] <- "Region"
+```
+
+```{r}
+# merge sales data with gdp and sales 
+temp <- vgsales1[,c(1,7:9)]
+temp <- melt(temp, id.vars = 'Rank', var = 'Region')
+temp$Region <- gsub("_.*","",temp$Region)
+
+merged_vgsales <- vgsales1 %>%
+  select(Rank:Publisher) %>%
+  left_join(temp, by = 'Rank') %>%
+  rename(sales = value) %>%
+  left_join(gdp, by = c('Region','Year')) %>%
+  rename(gdp = value) %>%
+  left_join(pop, by = c('Region','Year')) %>%
+  rename(pop = value)
+
+merged_vgsales2 <- merged_vgsales %>%
+  transform(sales = sales * 1000000) %>% 
+  mutate(sales_per_capita = sales/pop)
+
+merged_vgsales3 = merged_vgsales2[,-2]
+merged_vgsales3 = merged_vgsales3[,-10]
+merged_vgsales3 = merged_vgsales3[,-1]
+
+merged_vgsales3$Platform = factor(merged_vgsales3$Platform)
+merged_vgsales3$Genre = factor(merged_vgsales3$Genre)
+merged_vgsales3$Publisher = factor(merged_vgsales3$Publisher)
+merged_vgsales3$Region = factor(merged_vgsales3$Region)
+merged_vgsales3$Year = as.numeric(merged_vgsales3$Year)
+merged_vgsales3
+```
+
+```{r}
+#Full=lm(sales~Platform+Year+Genre+Publisher+Region+gdp+pop, data = merged_vgsales2)
+#MSE=(summary(Full)$sigma)^2
+#step(Full,scale=MSE)
+```
+
+```{r}
+#summary(Full)
+```
+
+```{r}
+library(ISLR)
+library(randomForest)
+library(gbm)
+library(dplyr)
+
+
+smp_siz = floor(0.75*nrow(merged_vgsales3))  # creates a value for dividing the data into train and test. In this case the value is defined as 75% of the number of rows in the dataset
+smp_siz
+
+set.seed(123)   # set seed to ensure you always have same random numbers generated
+train_ind = sample(seq_len(nrow(merged_vgsales3)),size = smp_siz)  # Randomly identifies therows equal to sample size ( defined in previous instruction) from  all the rows of Smarket dataset and stores the row number in train_ind
+train =merged_vgsales3[train_ind,] #creates the training dataset with row numbers stored in train_ind
+test=merged_vgsales3[-train_ind,]
+
+n=dim(train)[1]
+n_fold<-5
+folds_i <- sample(rep(1:n_fold, length.out = n))
+
+OUT.boo=NULL
+TRUTHboo=NULL
+OUTPUTboo=NULL
+set.seed(3)
+for (k in 1:n_fold) 
+{
+  test.ID <- which(folds_i == k)
+  train_set <- train[-test.ID, ]
+  test_set <- train[test.ID, ]
+  
+  boo=gbm(sales~.,data=train_set,distribution = "gaussian", n.trees=100, shrinkage=0.001,interaction.depth = 2)
+  predicted_boo=predict(boo,test_set,n.trees = 100, type = 'response')
+  mse=mean((predicted_boo-train$sales)^2) 
+  OUT.boo=c(OUT.boo, mse)
+}
+```
+
+```{r}
+mean(OUT.boo)
+sd(OUT.boo) #standard error:
+```
+
+```{r}
+boo=gbm(sales~.,data=train,distribution = "gaussian", n.trees=100, shrinkage=0.001,interaction.depth = 2)
+predicted_boo=predict(boo,test,n.trees = 100, type = 'response')
+mse=mean((predicted_boo-train$sales)^2)
+```
+
+```{r}
+summary(boo,order = TRUE)
+```
+
+
