@@ -21,7 +21,7 @@ library(ggthemes)
 library(readr)
 vgsales <- read_csv("vgsales.csv")
 # world gdp data extracted from worldbank 
-gdp <- read_csv('worldgdp.csv', skip = 4, na = c("", "NA"))
+gdp <- read_csv('worldgdp (1).csv', skip = 4, na = c("", "NA"))
 pop <- read_csv('worldpop.csv', skip = 4, na = c("", "NA"))
 ```
 
@@ -29,6 +29,7 @@ pop <- read_csv('worldpop.csv', skip = 4, na = c("", "NA"))
 ```{r}
 # 329 empty values in Year or Publisher, omit any rows with empty values
 vgsales[vgsales == 'N/A'] = NA
+vgsales= select(vgsales, -c(12))
 vgsales1 <- na.omit(vgsales)
 vgsales1 <- vgsales1[vgsales1$Year != 2020,]
 ```
@@ -154,4 +155,80 @@ mse=mean((predicted_boo-train$sales)^2)
 summary(boo,order = TRUE)
 ```
 
+
+```{r}
+
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(modelr)
+library(purrr)
+library(broom)
+library(glmnet)
+complete = merged_vgsales2[complete.cases(merged_vgsales2), ]
+DATA=complete[sample(nrow(complete), 750), ]
+DATA2=DATA[,c("Name","Platform","Year","Genre","Publisher","Region","sales","gdp","sales_per_capita")]
+head(DATA2)
+
+y=DATA2$sales
+X=model_matrix(DATA2, sales~.*.)[,-1]
+var.names=names(X)
+dim(X)
+dim(y)
+
+set.seed(216)
+cvmod.0=cv.glmnet(y=y,x=as.matrix(X),alpha=0)
+set.seed(216)
+cvmod.25=cv.glmnet(y=y,x=as.matrix(X),alpha=0.25)
+set.seed(216)
+cvmod.5=cv.glmnet(y=y,x=as.matrix(X),alpha=0.5)
+set.seed(216)
+cvmod.75=cv.glmnet(y=y,x=as.matrix(X),alpha=0.75)
+set.seed(216)
+cvmod.1=cv.glmnet(y=y,x=as.matrix(X),alpha=1)
+
+CV.0.ERROR=cvmod.0$cvm[which(cvmod.0$lambda==cvmod.0$lambda.1se)]
+CV.25.ERROR=cvmod.25$cvm[which(cvmod.25$lambda==cvmod.25$lambda.1se)]
+CV.5.ERROR=cvmod.5$cvm[which(cvmod.5$lambda==cvmod.5$lambda.1se)]
+CV.75.ERROR=cvmod.75$cvm[which(cvmod.75$lambda==cvmod.75$lambda.1se)]
+CV.1.ERROR=cvmod.1$cvm[which(cvmod.1$lambda==cvmod.1$lambda.1se)]
+
+MOD.RESULT=tibble(alpha=c(0,0.25,0.5,0.75,1),
+                  lambda=c(cvmod.0$lambda.1se,cvmod.25$lambda.1se,
+                           cvmod.5$lambda.1se,cvmod.75$lambda.1se,
+                           cvmod.1$lambda.1se),
+                  CV.Error=c(CV.0.ERROR,CV.25.ERROR,CV.5.ERROR,
+                             CV.75.ERROR,CV.1.ERROR))
+print(MOD.RESULT)
+
+best.alpha=MOD.RESULT$alpha[which.min(MOD.RESULT$CV.Error)]
+best.lambda=MOD.RESULT$lambda[which.min(MOD.RESULT$CV.Error)]
+
+best.mod=glmnet(y=y,x=as.matrix(X),nlambda=1,lambda=best.lambda,alpha=best.alpha)
+best.coef=as.tibble(as.matrix(coef(best.mod)))
+best.coef2=best.coef %>% 
+              mutate(Parameter=c("Int",var.names)) %>%
+              rename(Estimate=s0) %>%
+              select(Parameter,Estimate)
+nonzero.best.coef=best.coef2 %>%
+                    filter(Estimate!=0)
+print(nonzero.best.coef,n=1e3)
+
+DATA2$GS.hat=predict(best.mod,newx=as.matrix(X))
+
+ggplot(DATA2) +
+  geom_point(aes(x=sales,y=GS.hat),color="lightskyblue2") +
+  geom_abline(a=0,b=1,linetype="dashed") +
+  theme_minimal() +
+  ylab("Predicted Global Sales") +
+  xlab("Actual Global Sales")
+
+ggplot(DATA2) +
+  geom_histogram(aes(x=sales-GS.hat),fill="lightskyblue2") +
+  theme_minimal() +
+  xlab("Residuals") +
+  ylab("Frequency")
+```
 
