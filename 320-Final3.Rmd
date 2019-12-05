@@ -92,8 +92,18 @@ gdp1 <- gdp %>%
 gdp1<- dcast(gdp1, Year ~ Region)
 gdp_diff <- (gdp1[2:nrow(gdp1),2:ncol(gdp1)] -gdp1[1:(nrow(gdp1)-1),2:ncol(gdp1)])
 gdp_diff['Year'] = gdp1$Year[2:nrow(gdp1)]
-  
 gdp_diff = melt(gdp_diff, id.vars = 'Year', var = 'Region')
+
+sales2 <- sales %>%
+  arrange(Year) %>%
+  group_by(Year) %>%
+  summarize(NA_sum = sum(NA_Sales), EU_sum = sum(EU_Sales), JP_sum = sum(JP_Sales), Other_sum = sum(Other_Sales))
+
+sales_diff <- (sales2[2:nrow(sales2),2:ncol(sales2)] -sales2[1:(nrow(sales2)-1),2:ncol(sales2)])
+sales_diff['Year'] <- sales2$Year[2:nrow(sales2)]
+
+sales_diff1 <- melt(sales_diff, id.vars = 'Year', var = 'Region')
+sales_diff1$Region<-sub("_.*", "", sales_diff1$Region)
 
 region_gdp_sales_change <- gdp_diff%>%
   inner_join(sales_diff1, by = c('Region', 'Year'))
@@ -130,7 +140,7 @@ gpe6=gpe5[-c(1,3:4)]
 
 gpe_tidy=gpe6 %>% gather(2:38, key='Year_of_Release', value="Population")
 
-sales <- Video_Games_Sales_2016 %>%
+sales <- vgsales %>%
   select(Year_of_Release, NA_Sales, EU_Sales, JP_Sales, Other_Sales) 
 sales1 <- melt(sales, id.vars = 'Year_of_Release', var = 'region')
 
@@ -166,10 +176,6 @@ ggplot(gdp4mergefinal, aes(x = Year)) +
   annotate("text", x = 29.5, 1, label = "Financial Crisis", size = 3)
 
 ```
-
-
-
-
 
 
 ```{r}
@@ -493,5 +499,11 @@ ggplot(DATA2) +
   theme_minimal() +
   xlab("Residuals") +
   ylab("Frequency")
+```
+
+
+```{r}
+
+"Year","Genre","Critic_Score","User_Score","User_Count","Region","sales","pop"
 ```
 
