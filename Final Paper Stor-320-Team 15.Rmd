@@ -1,0 +1,498 @@
+---
+title: "Final Paper"
+author: "STOR 320.02 Group 15"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+#Put Necessary Libraries Here
+library(tidyverse)
+library(dplyr)
+library(reshape2)
+library(ggthemes)
+library(readr)
+library(tidyverse)
+library(ggplot2)
+library(modelr)
+library(purrr)
+library(broom)
+library(glmnet)
+library(ISLR)
+library(randomForest)
+library(gbm)
+library(dplyr)
+library(corrplot)
+```
+
+# INTRODUCTION
+
+
+Video games are a massive source of entertainment in the 21st century, with approximately 3 billion users. There are good reasons as to why video games are so popular. Gaming is a great way to relax, release stress and exercise your brain, all the while developing a rich and engaging social atmosphere. Consequently, they are a very attractive source of entertainment. And the data proves this. The gaming industry brought in a whopping $116 billion last year, the highest among TV, Films, Music; all of which are slowly decelerating. 
+
+That major tech companies and game development studios are capitalizing on this market is not surprising whatsoever. The purpose of this paper is to generate interest and provide insight into this polarizing industry, especially in terms of establishing a statistical model to explore the relationship between the different variables. To do so we will be analyzing some key questions regarding the interactions among the GDP, population, region, and video game sales. Our goal for the results of our study is to predict the sales of each game using the given situations upon a video game’s release. Our group also examined the video game sales dataset that includes the basic information of each video games including genre, year, platform, publisher, sales in different regions, etcetera.
+
+For the first question, we brought in GDP to give us insights on how the recession impact the game sales. We compared the GDP and the sale based on their regions and time frames. Trying to understand the relationship between the economy and game sales will help the manufacturer to better time the release of the games in order to get higher profit. It can also help people to understand whether there exists such a relationship between the performance of the economy and the performance of the market of video games, which is a platform of leisure. 
+
+The second question is aimed to get a better idea of how the features of a certain video game impact sales in different regions. This can help the manufacturers to better design their product and come up with better promotion plans. For example, manipulating the effect from the different combinations of the market situation of a new game could give the manufacturer a clear sense of which regions to focus on for marketing purposes and which platform and genre might help boost the popularity of the video game. 
+
+
+# DATA
+
+For our project, we used three datasets: video games sales, a global population dataset, and a GDP dataset. We explored the video games sales with ratings dataset on Kaggle. This data was web-scraped from VGchartz, an organization that collects detailed data on all the individual video games that have been released. (In the case of this dataset: up until 2016). The categorical variables in this dataset are Name, Platform, Year_of_Release, Genre, Publisher, User_Score, Developer, and Rating. Name refers to the title of the video game. Some examples include Dr. Mario, Frogger, and Donkey Kong. Platform is the console that the video game was released on. Some examples are SNES, Nintendo 64 and PS3. Year_of_Release is the year that the video game was released. The years in this dataset range from 1980 through 2016. Genre is the genre of the specific video game. Some examples include role-playing, action, and shooter. The numeric variables in this dataset are NA_Sales, EU_Sales, JP_Sales, Other_Sales, Global_Sales, Critic_Score, Critic_Count, User_Score and User_Count. NA_Sales is the variable which indicates the number of units sold for a specific video game in North America (in millions of units). EU_Sales is the variable which indicates the number of units sold for a specific video game in Europe (in millions of units). JP_Sales is the variable which indicates the number of units sold for a specific video game in Japan (in millions of units). Other_Sales is the variable which indicates the number of units sold for a specific video game in regions besides Japan, North America, and Europe (in millions of units). Global_Sales is the variable that indicates the total number of units sold for a specific video game in all regions. Critic_Score is the score assigned to a video game on a scale of 1 to 100 by a critic. Critic_Count is the number of critics that reviewed the game. User_Score is the score assigned to a video game on a scale of 1 to 10 by a user. User_Count is the number of users that reviewed the game. 
+
+We also collected a GDP dataset from WorldBank, an open-source data platform that records major economic indicators for 264 different countries across the globe. The categorical variables are Country Name, Country Code, Indicator Name, Indicator Code. The Country Name variable indicates the name of the country. The Country Code is a three-letter abbreviation of the country name. The indicator name is the currency that the GDP per year is reflected by. In our case, all GDP values are stated in the current value of the US dollar. The Indicator Name is an abbreviation of the currency reflecting the GDP. In this case, all 264 countries have the indicator name of NY.GDP.PCAP.CD. The numerical variables are 1960, 1961, 1962, 1963, 1964, 1965, …, 2016, 2017, 2018. A given year’s output is the GDP for that region. Since this dataset contained regional GDP values for years outside of the year 1980 to 2016 range, we removed all columns with GDP data before 1980 and after 2016. The third dataset we used, global population estimates, gives our group the population for specific countries around the world on any given year. For the goal of our research, we only collected part of the GDP and population data and then join them into our video games data, which correspond to different years and regions.
+
+In order to obtain a data frame that helps with our modeling, we combined the three datasets. First, we spread the sales variables so that we obtained a table whose scope is three times of the original dataset, with an added variable, “Region”. The “sales” variable would be the corresponding sales of the game in that region. We then removed “Global” and “Other region” so that we can better focus on predicting sales in North America, Japan, and the European Union. As indicated previously, the population and GDP are joined into each row of observations according to the year and region name. The variables “Developer” was dropped in the final data frame because it is identical with “Publisher”, and the “Name” of games was left out since we do not plan to touch on text-mining to predict the sales. Throughout the process, all the observations with NA in the data frame were dropped, and at the end, a data frame with 44,865 entries and 12 variables was developed. 
+
+
+
+# RESULTS
+
+##First Question: Relationship between Sales and Economy: 
+
+Our first question involved visualizing the relationship between GDP, population, and video game sales in the three regions: North America, Japan, and the European Union. The first graph here is video game sales for each year break down by regions. On this graph, the sales amount is visualized with geom_area function in ggplot. There exists an obvious trend in the increase in sales each year from the beginning of our data until 2008. As marked in the graph, the financial crisis in 2008 brought dramatic influence to the whole world in many different industries. Here, we suspect that the financial crisis decreased the sales of video games, and as a result of the sales gradually diminished after the year 2008. That gives us the initial hypothesis, which is the situation of the economy is correlated with video game sales.  
+
+```{r,echo=FALSE}
+library(readr)
+vgsales <- read_csv("Video_Games_Sales_as_at_22_Dec_2016.csv")
+# world gdp data extracted from worldbank 
+gdp <- read_csv('worldgdp.csv', skip = 4, na = c("", "NA"))
+pop <- read_csv('worldpop.csv', skip = 4, na = c("", "NA"))
+gpe <- read_csv("gpe.csv")
+head(vgsales)
+
+# 6875 non-empty values in dataset, omit any rows with empty values
+vgsales[vgsales == 'N/A'] = NA
+vgsales1 <- na.omit(vgsales)
+vgsales1 <- vgsales1[vgsales1$Year_of_Release != 2020,]
+vgsales1 <- vgsales1[,-15]
+vgsales1 <- vgsales1[,-12]
+names(vgsales1)[names(vgsales1) == "Year_of_Release"] <- "Year"
+head(vgsales1)
+
+# clean world gdp data
+countrylist = c('Japan', 'United States', 'European Union')
+gdp <- gdp %>%
+  select('Country Name', '1980':'2018')
+gdp = gdp[gdp$`Country Name` %in% countrylist,]
+gdp = melt(gdp, id.vars = 'Country Name', var = 'Year')
+gdp$`Country Name`[gdp$`Country Name` == 'Japan'] = 'JP'
+gdp$`Country Name`[gdp$`Country Name` == 'United States'] = 'NA'
+gdp$`Country Name`[gdp$`Country Name` == 'European Union'] = 'EU'
+names(gdp)[names(gdp) == "Country Name"] <- "Region"
+
+# clean world population data
+pop <- pop %>%
+  select('Country Name', '1980':'2018')
+pop = pop[pop$`Country Name` %in% countrylist,]
+pop = melt(pop, id.vars = 'Country Name', var = 'Year')
+pop$`Country Name`[pop$`Country Name` == 'Japan'] = 'JP'
+pop$`Country Name`[pop$`Country Name` == 'United States'] = 'NA'
+pop$`Country Name`[pop$`Country Name` == 'European Union'] = 'EU'
+names(pop)[names(pop) == "Country Name"] <- "Region"
+
+# recession in the U.S. have an effect on sales from December 2007 to June 2009
+# compare nominal sales across region
+sales <- vgsales1 %>%
+  select(Year, NA_Sales, EU_Sales, JP_Sales, Other_Sales) 
+sales1 <- melt(sales, id.vars = 'Year', var = 'region')
+
+sum_sales_byregion <- sales1 %>%
+  group_by(region, Year) %>%
+  summarize(sum_sales = sum(value))
+
+sum_sales_byregion$region<-sub("_.*", "", sum_sales_byregion$region)
+ggplot(sum_sales_byregion, aes(x = Year, y = sum_sales, fill = region, group = region)) +    geom_area() + 
+  theme(axis.text.x =element_text(angle = 90, hjust = 1)) + 
+  annotate('rect', xmin = 17, xmax = 18, ymin = -Inf, ymax = Inf, alpha = 0.2) + 
+  labs(title = 'Regional Sales by Year', y = 'Annual Nominal Sales') +
+  annotate("text", x = 17, y = 400, label = "Financial Crisis", size = 3)
+```
+
+
+We then continue to add the population data into our frame and decided that the most appropriate way to visualize this relationship would be to have a line graph (representing the region’s GDP) and an area graph (representing the region’s video game sales) plotted on the same chart. To take this one step further, we divided the sales in the region by the population to obtain a number for the unit of video games bought per person. To accomplish this, we used the merged dataset that contained the sales in each region, the GDP in each region, and the population of each region. We created a new variable called SALESPOP by dividing sales by the population. Then, we used ggplot to graph SALESPOP on the y-axis and year on the x-axis. The next step was to separate the graphs by region. To do this, we used the facet_grid command. After we obtained the graphs for sales per capita in each individual region, the next step was to plot the line graph of the GDP for the particular region over the area graph. To achieve our desired result, we used a combination of the geom_line and scale_y_continuous commands to create a separate. From the graphs, we came to the conclusion that there is a relationship between GDP and sales per capita. It seems like the relationship is weaker in the United States than in Japan and the European Union. Moreover, it seems like the relationship between GDP and sales per capita is not always reliable in Japan and the European Union because there are short time intervals where GDP is increasing and sales per capita is decreasing. Contrarily, there are short time intervals where GDP is decreasing and sales per capita is increasing. 
+
+```{r,echo=FALSE}
+# world economy vs. sales
+# scatter plot
+gdp1 <- gdp %>%
+  rename(gdp = value) 
+gdp1<- dcast(gdp1, Year ~ Region)
+gdp_diff <- (gdp1[2:nrow(gdp1),2:ncol(gdp1)] -gdp1[1:(nrow(gdp1)-1),2:ncol(gdp1)])
+gdp_diff['Year'] = gdp1$Year[2:nrow(gdp1)]
+gdp_diff = melt(gdp_diff, id.vars = 'Year', var = 'Region')
+
+sales2 <- sales %>%
+  arrange(Year) %>%
+  group_by(Year) %>%
+  summarize(NA_sum = sum(NA_Sales), EU_sum = sum(EU_Sales), JP_sum = sum(JP_Sales), Other_sum = sum(Other_Sales))
+
+sales_diff <- (sales2[2:nrow(sales2),2:ncol(sales2)] -sales2[1:(nrow(sales2)-1),2:ncol(sales2)])
+sales_diff['Year'] <- sales2$Year[2:nrow(sales2)]
+
+sales_diff1 <- melt(sales_diff, id.vars = 'Year', var = 'Region')
+sales_diff1$Region<-sub("_.*", "", sales_diff1$Region)
+
+region_gdp_sales_change <- gdp_diff%>%
+  inner_join(sales_diff1, by = c('Region', 'Year'))
+
+region_gdp_sales_change %>%
+  ggplot(aes(x = value.x, y = value.y)) + geom_point() + geom_smooth() + 
+  facet_grid(. ~ Region) +
+  labs(title = 'GDP Change in EU, JP, and NA vs. Sales Change', x = 'GDP Change (Current $)', y = 'Nominal Sales Change')
+```
+
+```{r,echo=FALSE}
+gpe1 = filter(gpe, gpe$`Series Name` == "Population, total") 
+gpe2 = filter(gpe1, gpe1$`Country Name` %in% c("North America", "Japan", "European Union", "World")) 
+gpe3 <- gpe2[c(1:4, 25: 61)]  
+
+temp = gpe3[4,][c(5:41)] - gpe3[3,][c(5:41)] - gpe3[2,][c(5:41)] - gpe3[1,][c(5:41)] 
+temp <- cbind("Series Code" = "SP.POP.TOTL", temp) 
+temp <- cbind("Series Name" = "Population, total", temp) 
+temp <- cbind("Country Code" = "OTR", temp) 
+temp <- cbind("Country Name" = "Other", temp) 
+final_gpe = rbind(gpe3, temp) 
+gpe4 =gpe3%>% 
+  rename(region = "Country Code" ) 
+gpe5=gpe4 %>%   
+  mutate(region = ifelse(region =="EUU", "EU", region), region = ifelse(region =="NAC", "NA", region),  region = ifelse(region =="JPN", "JP", region), region = ifelse(region =="WLD", "Other", region)) 
+colnames(gpe5) <- sub('\\[[^.]+$', '', colnames(gpe5))
+colnames(gpe5) <- gsub(" ","",colnames(gpe5))
+gpe6=gpe5[-c(1,3:4)]
+
+gpe_tidy=gpe6 %>% gather(2:38, key='Year_of_Release', value="Population")
+
+sales <- vgsales %>%
+  select(Year_of_Release, NA_Sales, EU_Sales, JP_Sales, Other_Sales) 
+sales1 <- melt(sales, id.vars = 'Year_of_Release', var = 'region')
+
+sum_sales_byregion <- sales1 %>%
+  group_by(region, Year_of_Release) %>%
+  summarize(sum_sales = sum(value))
+
+sum_sales_byregion1=sum_sales_byregion[-c(38,39,40,78,79,80,118,119,120,158,159,160),]
+
+sum_sales_byregion1$region<-sub("_.*", "", sum_sales_byregion1$region)
+
+sales_gpe=inner_join(sum_sales_byregion1,gpe_tidy)
+
+sales_gpe_final<-sales_gpe%>%
+  mutate(SALESPOP=(sum_sales*1000000)/Population)
+colnames(sales_gpe_final)[names(sales_gpe_final) == "region"] <- "Region"
+colnames(sales_gpe_final)[names(sales_gpe_final) == "Year_of_Release"] <- "Year"
+
+gdp$Year=as.character(gdp$Year)
+
+gdp4mergefinal=inner_join(gdp, sales_gpe_final, by = c("Region","Year"))
+head(gdp4mergefinal)
+gdp4mergefinal$Region=factor(gdp4mergefinal$Region)
+gdp4mergefinal$Year=factor(gdp4mergefinal$Year)
+
+ggplot(gdp4mergefinal, aes(x = Year)) +    
+  geom_area(aes(y = SALESPOP, fill = Region, group = Region, stat="identity")) +
+  geom_line(aes(y=value/60000, group = Region)) +
+  scale_y_continuous(sec.axis = sec_axis(~.*60000, name="gdp"),limits=c(0,1.2))+
+  facet_grid(. ~ Region) +
+  theme(axis.text.x =element_text(angle = 90, hjust = 1)) + annotate('rect', xmin = 28.5, xmax = 30.5, ymin = -Inf, ymax = Inf, alpha = 0.2) + 
+  annotate("text", x = 29.5, 1, label = "Financial Crisis", size = 3) + 
+  labs(title = 'GDP and Sales per Capita by Year')
+```
+
+In the next step, a scatter plot that compares GDP per capita and nominal sales were derived in order to further explore whether the situation of the economy could be a good indicator of video game sales. In this process, we first got each year and region’s difference for both GDP and the nominal sales. Subsequently, the data was visualized in one graph, so that the amount of change of GDP on the x-axis and the change in sales is on the y-axis. As the graph demonstrates, for the European Union, each amount of increase in GDP has a weak positive effect on the amount of increase in sales. Nevertheless, the changes do not seem to have any relationship with each other in the case of Japan, and for North America the general relationship even becomes non-linear. From our visualizations and analysis, a weak relationship between GDP and sales could be captured, but in many aspects such as the number of changes which has been compared in the last graph, GDP fails to meet the expectation of the predicting power for sales. Thus, although the result is somewhat surprising, we conclude that the situation of the economy is not a good indicator of how a video game performs.
+
+
+
+##Second Question: Modeling 
+
+After graphing the relationship, we performed cross-validation on all the variables in the model in order to predict sales. Our goal was to create an initial model that would serve as a reference point for all future models. The variables we include in this model are Platform, Year, Genre, Publisher, Critic_Score, User_Score, Region, Sales, gdp, pop, and User_Count. We used alphas equal to 0, .25, .5, .75, and 1. The best fit for this model is when alpha equals 1 and lambda equals 254.5 and our CV error equals 0.29. To supplement this model and better understand the way that variables interacted with each other, we graphed a correlation matrix. 
+
+```{r,echo=FALSE}
+# merge sales data with gdp and sales 
+temp <- vgsales1[,c(1,6:8)]
+temp <- melt(temp, id.vars = 'Name', var = 'Region')
+temp$Region <- gsub("_.*","",temp$Region)
+merged_vgsales <- vgsales1 %>%
+  select(1:5,11:14) %>%
+  left_join(temp, by = 'Name') %>%
+  rename(sales = value) %>%
+  left_join(gdp, by = c('Region','Year')) %>%
+  rename(gdp = value) %>%
+  left_join(pop, by = c('Region','Year')) %>%
+  rename(pop = value)
+merged_vgsales2 <- merged_vgsales %>%
+  mutate(sales_per_capita = sales/pop) 
+
+merged_vgsales2 <- merged_vgsales2[,-1]
+merged_vgsales2 <- merged_vgsales2[,-13]
+merged_vgsales2$Platform = factor(merged_vgsales2$Platform)
+merged_vgsales2$Genre = factor(merged_vgsales2$Genre)
+merged_vgsales2$Publisher = factor(merged_vgsales2$Publisher)
+merged_vgsales2$Region = factor(merged_vgsales2$Region)
+merged_vgsales2$Rating = factor(merged_vgsales2$Rating)
+merged_vgsales2$Year = as.numeric(merged_vgsales2$Year)
+merged_vgsales2$User_Score = as.numeric(merged_vgsales2$User_Score)
+merged_vgsales2
+
+# Cross validation for the full model 
+library(tidyverse)
+library(ggplot2)
+library(modelr)
+library(purrr)
+library(broom)
+library(glmnet)
+complete = merged_vgsales2[complete.cases(merged_vgsales2), ]
+DATA=complete[sample(nrow(complete), 750), ]
+DATA2=DATA[,c("Platform","Year","Genre","Publisher","Critic_Score","User_Score","User_Count","Region","sales","gdp","pop", "Rating")]
+head(DATA2)
+y=DATA2$sales
+X=model_matrix(DATA2, sales~.*.)[,-1]
+var.names=names(X)
+dim(X)
+dim(y)
+
+set.seed(216)
+cvmod.0=cv.glmnet(y=y,x=as.matrix(X),alpha=0)
+set.seed(216)
+cvmod.25=cv.glmnet(y=y,x=as.matrix(X),alpha=0.25)
+set.seed(216)
+cvmod.5=cv.glmnet(y=y,x=as.matrix(X),alpha=0.5)
+set.seed(216)
+cvmod.75=cv.glmnet(y=y,x=as.matrix(X),alpha=0.75)
+set.seed(216)
+cvmod.1=cv.glmnet(y=y,x=as.matrix(X),alpha=1)
+CV.0.ERROR=cvmod.0$cvm[which(cvmod.0$lambda==cvmod.0$lambda.1se)]
+CV.25.ERROR=cvmod.25$cvm[which(cvmod.25$lambda==cvmod.25$lambda.1se)]
+CV.5.ERROR=cvmod.5$cvm[which(cvmod.5$lambda==cvmod.5$lambda.1se)]
+CV.75.ERROR=cvmod.75$cvm[which(cvmod.75$lambda==cvmod.75$lambda.1se)]
+CV.1.ERROR=cvmod.1$cvm[which(cvmod.1$lambda==cvmod.1$lambda.1se)]
+MOD.RESULT=tibble(alpha=c(0,0.25,0.5,0.75,1),
+                  lambda=c(cvmod.0$lambda.1se,cvmod.25$lambda.1se,
+                           cvmod.5$lambda.1se,cvmod.75$lambda.1se,
+                           cvmod.1$lambda.1se),
+                  CV.Error=c(CV.0.ERROR,CV.25.ERROR,CV.5.ERROR,
+                             CV.75.ERROR,CV.1.ERROR))
+print(MOD.RESULT)
+
+best.alpha=MOD.RESULT$alpha[which.min(MOD.RESULT$CV.Error)]
+best.lambda=MOD.RESULT$lambda[which.min(MOD.RESULT$CV.Error)]
+best.mod=glmnet(y=y,x=as.matrix(X),nlambda=1,lambda=best.lambda,alpha=best.alpha)
+best.coef=as.tibble(as.matrix(coef(best.mod)))
+best.coef2=best.coef %>% 
+              mutate(Parameter=c("Int",var.names)) %>%
+              rename(Estimate=s0) %>%
+              select(Parameter,Estimate)
+nonzero.best.coef=best.coef2 %>%
+                    filter(Estimate!=0)
+print(nonzero.best.coef,n=1e3)
+DATA2$GS.hat=predict(best.mod,newx=as.matrix(X))
+
+ggplot(DATA2) +
+  geom_point(aes(x=sales,y=GS.hat),color="lightskyblue2") +
+  geom_abline(a=0,b=1,linetype="dashed") +
+  theme_minimal() +
+  ylab("Predicted Global Sales") +
+  xlab("Actual Global Sales")
+ggplot(DATA2) +
+  geom_histogram(aes(x=sales-GS.hat),fill="lightskyblue2") +
+  theme_minimal() +
+  xlab("Residuals") +
+  ylab("Frequency")
+```
+
+After we performed our initial cross-validation, we used the Gradient Boosting Model for the prediction. The parameters we use for the gradient boosting model was R default. We found the variable importance chart as below: 
+ 
+var
+<fctr>
+rel.inf
+<dbl>
+User_Count	User_Count	48.195794		
+Platform	Platform	29.655010		
+pop	pop	18.759040		
+Region	Region	1.703822		
+Publisher	Publisher	1.085498		
+Genre	Genre	0.600836		
+Year	Year	0.000000		
+Critic_Score	Critic_Score	0.000000		
+User_Score	User_Score	0.000000		
+Rating	Rating	0.000000
+
+
+User_Count is the number of users who contributed to the game’s user score. This explains nearly 50% of the variation in sales. The platform is also an important factor since users are loyal to the brand that has a big name and a good reputation, such as Nintendo. The region and population are the third and the fourth most important variable that explains sales. There are certain genres that are more popular than others. If the manufacturer can better prepare their promotion plan in regions that have higher sales and population, and develop games in genres that have more popularity than the manufacturer can make a great profit. In this Gradient Boosting Model, we were surprised to find that the impact of GDP on sales was also 0. Again, this successfully corresponds with the previous conclusion from the first question.
+
+After using the Gradient Boosting Model, we ran another cross-validation including only User_Count, Platform, pop, Region, Publisher, and Genre. We dropped Rating, User_Score, Critic_Score, Year, and gdp, because they did not have a significant impact on sales according to the Gradient Boosting Model. After performing cross-validation for alpha equal to 0, .25, .5, .75, and 1  on the relevant variables, we found that our best predictive model with the lowest CV error occurs when alpha equals .75 and the CV error equals .512. We were surprised to find that eliminating the insignificant variables led to an increase in the CV error. However, removing variables might have decreased the accuracy of the model. 
+
+After running our second cross-validation, we decided to perform a ridge regression. We started off by establishing our lambdas, establishing a vector for our dependent variable, and creating a matrix. Then, we fit the ridge model over our choices for lambda using the cv.glmnet function. We used five folds and our previously defined lambdas. We obtained our optimal lambda which equaled to 0.01 and used it for our coefficient outputs. Then, we predicted sales using the fitted model and obtained values for the model’s sum of squares total, sum of squares error, and r-squared.
+
+```{r,echo=FALSE}
+# Gradient Boosting Modeling
+library(ISLR)
+library(randomForest)
+library(gbm)
+library(dplyr)
+smp_siz = floor(0.75*nrow(merged_vgsales2))  # creates a value for dividing the data into train and test. In this case the value is defined as 75% of the number of rows in the dataset
+smp_siz
+set.seed(123)   # set seed to ensure you always have same random numbers generated
+train_ind = sample(seq_len(nrow(merged_vgsales2)),size = smp_siz)  
+# Randomly identifies therows equal to sample size ( defined in previous instruction) from  all the rows of Smarket dataset and stores the row number in train_ind
+train =merged_vgsales2[train_ind,] 
+#creates the training dataset with row numbers stored in train_ind
+test=merged_vgsales2[-train_ind,]
+n=dim(train)[1]
+n_fold<-5
+folds_i <- sample(rep(1:n_fold, length.out = n))
+OUT.boo=NULL
+TRUTHboo=NULL
+OUTPUTboo=NULL
+set.seed(3)
+for (k in 1:n_fold) 
+{
+  test.ID <- which(folds_i == k)
+  train_set <- train[-test.ID, ]
+  test_set <- train[test.ID, ]
+  
+  boo=gbm(sales~.,data=train_set,distribution = "gaussian", n.trees=100, shrinkage=0.001,interaction.depth = 2)
+  predicted_boo=predict(boo,test_set,n.trees = 100, type = 'response')
+  mse=mean((predicted_boo-train$sales)^2) 
+  OUT.boo=c(OUT.boo, mse)
+}
+mean(OUT.boo)
+sd(OUT.boo) #standard error:
+boo=gbm(sales~.,data=train,distribution = "gaussian", n.trees=100, shrinkage=0.001,interaction.depth = 2)
+predicted_boo=predict(boo,test,n.trees = 100, type = 'response')
+mse=mean((predicted_boo-train$sales)^2)
+mse
+summary(boo,order = TRUE)
+```
+
+```{r,echo=FALSE}
+# Cross validation for variables selected after Gradient Boosting 
+complete = merged_vgsales2[complete.cases(merged_vgsales2), ]
+DATA=complete[sample(nrow(complete), 750), ]
+DATA3=DATA[,c("Platform","Genre","Publisher","User_Count","Region","sales","pop")]
+head(DATA3)
+y=DATA3$sales
+X=model_matrix(DATA3, sales~.)[,-1]
+var.names=names(X)
+dim(X)
+dim(y)
+
+set.seed(216)
+cvmod.0=cv.glmnet(y=y,x=as.matrix(X),alpha=0)
+set.seed(216)
+cvmod.25=cv.glmnet(y=y,x=as.matrix(X),alpha=0.25)
+set.seed(216)
+cvmod.5=cv.glmnet(y=y,x=as.matrix(X),alpha=0.5)
+set.seed(216)
+cvmod.75=cv.glmnet(y=y,x=as.matrix(X),alpha=0.75)
+set.seed(216)
+cvmod.1=cv.glmnet(y=y,x=as.matrix(X),alpha=1)
+CV.0.ERROR=cvmod.0$cvm[which(cvmod.0$lambda==cvmod.0$lambda.1se)]
+CV.25.ERROR=cvmod.25$cvm[which(cvmod.25$lambda==cvmod.25$lambda.1se)]
+CV.5.ERROR=cvmod.5$cvm[which(cvmod.5$lambda==cvmod.5$lambda.1se)]
+CV.75.ERROR=cvmod.75$cvm[which(cvmod.75$lambda==cvmod.75$lambda.1se)]
+CV.1.ERROR=cvmod.1$cvm[which(cvmod.1$lambda==cvmod.1$lambda.1se)]
+MOD.RESULT=tibble(alpha=c(0,0.25,0.5,0.75,1),
+                  lambda=c(cvmod.0$lambda.1se,cvmod.25$lambda.1se,
+                           cvmod.5$lambda.1se,cvmod.75$lambda.1se,
+                           cvmod.1$lambda.1se),
+                  CV.Error=c(CV.0.ERROR,CV.25.ERROR,CV.5.ERROR,
+                             CV.75.ERROR,CV.1.ERROR))
+print(MOD.RESULT)
+
+best.alpha=MOD.RESULT$alpha[which.min(MOD.RESULT$CV.Error)]
+best.lambda=MOD.RESULT$lambda[which.min(MOD.RESULT$CV.Error)]
+best.mod=glmnet(y=y,x=as.matrix(X),nlambda=1,lambda=best.lambda,alpha=best.alpha)
+best.coef=as.tibble(as.matrix(coef(best.mod)))
+best.coef2=best.coef %>% 
+              mutate(Parameter=c("Int",var.names)) %>%
+              rename(Estimate=s0) %>%
+              select(Parameter,Estimate)
+nonzero.best.coef=best.coef2 %>%
+                    filter(Estimate!=0)
+print(nonzero.best.coef,n=1e3)
+DATA2$GS.hat=predict(best.mod,newx=as.matrix(X))
+
+ggplot(DATA2) +
+  geom_point(aes(x=sales,y=GS.hat),color="lightskyblue2") +
+  geom_abline(a=0,b=1,linetype="dashed") +
+  theme_minimal() +
+  ylab("Predicted Global Sales") +
+  xlab("Actual Global Sales")
+ggplot(DATA2) +
+  geom_histogram(aes(x=sales-GS.hat),fill="lightskyblue2") +
+  theme_minimal() +
+  xlab("Residuals") +
+  ylab("Frequency")
+```
+
+```{r,echo=FALSE}
+# Ridge Regression 
+# correlation matrix
+# corr matrix for categorical vars 
+library(corrplot)
+vgsales_final = merged_vgsales2
+head(vgsales_final)
+
+vgsales_final[,1:11] <- lapply(vgsales_final[,1:11],as.integer)
+
+corrplot(cor(vgsales_final), type = "upper", order = "hclust", tl.col = "black")
+```
+
+```{r,echo=FALSE}
+## baseline 
+mod1 <- lm(sales ~., data = vgsales_final)
+summary(mod1)
+```
+
+```{r,echo=FALSE}
+# Ridge Regression
+lambdas <- 10^seq(5, -2, by = -.1)
+
+Mx<- model.matrix(sales ~ .^2, data=vgsales_final)[,-1] # matrix for predictors
+My<- vgsales_final$sales # vector for y
+
+# fit ridge model over lambda choices, 5-fold validation
+cv_glm_fit  <- cv.glmnet(Mx, My, alpha = 0, lambda = lambdas, nfolds = 5) 
+plot(cv_glm_fit)
+
+# grab optimal lambda = 0.01
+opt_lambda <- cv_glm_fit$lambda.min
+
+glm_fit <- cv_glm_fit$glmnet.fit
+summary(glm_fit)
+# grab coefficient outputs for optimal lambda
+coef(glm_fit)[,which(glm_fit$lambda == opt_lambda)]
+
+# predict using fitted model
+y_predicted<-predict(glm_fit, s = opt_lambda, newx = Mx)
+
+# Sum of Squares Total and Error
+sst <- sum((My - mean(My))^2)
+sse <- sum((y_predicted - My)^2)
+sst
+sse
+
+# R squared
+rsq <- 1 - sse / sst
+rsq
+```
+
+
+#CONCLUSION
+We expanded upon the first question - “Is there a strong relationship between the situation of the economy and video game sales” - by studying the relationship between GDP, population, and video game sales in the regions North America, Japan, and the European Union. Our initial graph presented a somewhat positive case. GDP and video game unit sales showed some close correlation in Japan and North America. Based on this observation, we proceeded further to create a predictive model and potentially confirm or deny our hypothesis. After concluding our second exploration, we realized that our initial hypothesis was not completely correct. We incorrectly theorized that GDP was related to sales per capita, but we were surprised to find through the feature importance chart that GDP’s influence was negligible. The coefficient for importance chart indicates that GDP doesn’t explain the variations in sales. 
+
+Based on our results, we can infer that video game publishers should not take GDP into account when timing a video game release. Video game publishers should take the year, genre, critic score, user score, region, population, and user count into consideration. In order to increase sales, companies should listen to the critics’ and users’ criticisms of the game. They should provide some sort of incentive for users to leave reviews so they can update the game in a way that would satisfy the consumers. It might also be wise to have consumers try out the game before it is released and listen to their feedback. Furthermore, publishing games on multiple platforms may lead to higher sales.
+
+From our analysis, the findings can aid manufacturers of these platforms and games in better understanding on how to launch their newer products for maximum profit. The result also provides indications about what combinations of the platforms, genres, and regions for the release of video games might be helpful to boost the sales. Although it is surprising to find that the situation of the economy does not have a huge influence on video game sales, in real-world scenarios manufacturers and publishers could use this information to selectively time and release their products. As we found in the modeling process, User_Count is the best indicator of better sales. In reality, game users tend to provide reviews on the games they enjoy. This presents a simple cycle: positive reviews attract more people, and that leads to more positive reviews. We believe variables such as User_Count, population, Publisher, etc. have a big influence on video game sales. More importantly, it is helpful for game manufacturers to meditate on how they could optimize the inputs of games and value the customer base along with their suggestions from reviews to optimize the general gaming experience. 
+
+
+
+
+
+
+
+
